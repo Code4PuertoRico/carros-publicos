@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+    <style>
+        .routeLabel {
+            font-weight: bold;
+            border-radius: 3px;
+            color: white;
+            padding: .1em .3em;
+            border: 1px solid;
+        }
+
+        .leaflet-control-layers label {
+            display: inline;
+            float: left;
+        }
+
+        .leaflet-control-layers-overlays > label:nth-child(4n+1) {
+            clear: left;
+        }
+    </style>
+    <script type="text/javascript" src="http://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+    <script type="text/javascript">
+
+        var DEFAULTS = {
+            CENTER: [18.430189, -66.060061],
+            ZOOM: 13,
+            MIN_ZOOM: 10,
+            MAX_ZOOM: 19,
+            BOUNDS: [[18.352687, -66.179752],[18.477284, -65.928097]],
+            ROUTE_COLOR_OPACITY: 0.8
+        };
+
+        var colors = {};
+        var routeLayers = {};
+        var layerControl = L.control.layers(null, {});
+        var map;
+
+        $(document).ready(function() {
+
+            $('#map').css('height', window.innerHeight * 0.95);
+
+            map = L.map('map', {
+                center: DEFAULTS.CENTER,
+                zoom: DEFAULTS.ZOOM
+            });
+
+            var url = 'http://{s}.mqcdn.com/tiles/1.0.0/osm/{z}/{x}/{y}.png'; //mapquest
+            L.tileLayer(url, {
+                minZoom: DEFAULTS.MIN_ZOOM,
+                maxZoom: DEFAULTS.MAX_ZOOM,
+                maxBounds: DEFAULTS.BOUNDS,
+                attribution: 'Tiles courtesy of <a href="http://www.mapquest.com/" target="_blank">MapQuest</a>, '
+                        + '<a href="http://www.openstreetmap.org/" target="_blank">OpenStreetMap Contributors</a>',
+                subdomains: ['otile1','otile2','otile3','otile4']
+            }).addTo(map);
+
+            getAllRoutes();
+            layerControl.addTo(map);
+
+
+        });
+
+        function getAllRoutes() {
+            $.ajax('carros_publicos.geojson', {
+                contentType: 'application/json; charset=UTF-8',
+                dataType: 'json',
+                success: function (geojsonRoutes) {
+                    for (var i = 0; i < geojsonRoutes.features.length; i++) {
+                        var data = geojsonRoutes.features[i];
+                        colors[data.properties.codigo] = data.properties.color;
+                        var geoJsonLayer = L.geoJson(data, {
+                            style: routeStyle,
+                            onEachFeature: onEachRoute
+                        });
+                        routeLayers[data.id] = geoJsonLayer;
+                        var darkColor = data.properties.color;
+                        var lightColor = shadeColor(data.properties.color, 100 - (DEFAULTS.ROUTE_COLOR_OPACITY * 100));
+                        var routeLabel = '<span class="routeLabel" style="' +
+                                'background-color: ' + lightColor +
+                                '; text-shadow: -1px 0 ' + darkColor + ', 0 1px ' + darkColor + ', 1px 0 ' + darkColor + ', 0 -1px ' + darkColor +
+                                '; border-color: ' + darkColor + '">' + (data.properties.codigo || '??') + '</span>';
+                        geoJsonLayer.addTo(map);
+                        layerControl.addOverlay(geoJsonLayer, routeLabel);
+                    }
+                    map.locate({setView: true, maxZoom: 13, enableHighAccuracy: true});
+                }
+            });
+        }
+
+        function routeStyle(feature) {
+            return {
+                weight: 6,
+                opacity: DEFAULTS.ROUTE_COLOR_OPACITY,
+                color: feature.properties.color
+            };
+        }
+
+        function onEachRoute(feature, layer) {
+            layer.bindPopup(feature.properties.codigo + ' ' + feature.properties.nombre);
+            layer.on("click", function() {
+                layer.bringToFront();
+            });
+        }
+
+        function shadeColor(color, percent) {
+            var num = parseInt(color.slice(1),16);
+            var amt = Math.round(2.55 * percent);
+            var R = (num >> 16) + amt;
+            var B = (num >> 8 & 0x00FF) + amt;
+            var G = (num & 0x0000FF) + amt;
+            return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (B<255?B<1?0:B:255)*0x100 + (G<255?G<1?0:G:255))
+                            .toString(16).slice(1);
+        }
+
+    </script>
+</head>
+<body>
+<div id="map" style="width: 100%; height: 800px;"></div>
+</body>
+</html>
