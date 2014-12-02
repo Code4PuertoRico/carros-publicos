@@ -41,7 +41,6 @@
             ROUTE_COLOR_OPACITY: 0.8
         };
 
-        var colors = {};
         var routeLayers = {};
         var layerControl = L.control.layers(null, {});
         var map;
@@ -78,7 +77,6 @@
                 success: function (geojsonRoutes) {
                     for (var i = 0; i < geojsonRoutes.features.length; i++) {
                         var data = geojsonRoutes.features[i];
-                        colors[data.properties.codigo] = data.properties.color;
                         var geoJsonLayer = L.geoJson(data, {
                             style: routeStyle,
                             onEachFeature: onEachRoute
@@ -94,6 +92,9 @@
                         layerControl.addOverlay(geoJsonLayer, routeLabel);
                     }
                     map.locate({setView: true, maxZoom: 13, enableHighAccuracy: true});
+                },
+                error: function(a, b, msg) {
+                    alert(msg);
                 }
             });
         }
